@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# https://www.it-dan.com/blog/block-ads-linux-and-bind9
+# http://someonewhocares.org/hosts/zero/
+# https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
+
+readonly TMP=$(mktemp)
+readonly ZONES="/etc/bind/zones.blocked"
+
+readonly URLS=(
+    https://someonewhocares.org/hosts/zero/hosts
+    https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
+    https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list1.txt
+    https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list2.txt
+    https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt
+    https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list
+    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/porn.list
+)
+
+# Regex, false positives only
+readonly WHITELIST="analytics\.google\.com|crackstation\.net"
+
+# Zones not in the listed URLS
+readonly MANUALBLOCKS=(
+    "some.site"
+)
+
+# Put all URLS into TMP
+for url in ${URLS[@]}; do
+  wget -O - $url --quiet | grep -Po '(?:^|0\.0\.0\.0 )((?:[a-z0-9\-]+\.)+[a-z\-]+)(?:$| )' | \
+    awk '{print $NF}' | sed 's/www\.//' | tr "[:upper:]" "[:lower:]" >> $TMP
+done
+
+# Manually blocked sites
+for domain in ${MANUALBLOCKS[@]}; do
+  # Remove matching subdomains, e.g. "ads.google.com" is removed if "google.com" is in the MANUALBLOCKS
+  sed -i "/\.$domain\$/d" $TMP
+  echo "$domain" >> $TMP
+done
+
+# Calculate current md5 sum
+OLDSUM=$(md5sum $ZONES)
+
+# Ensure only unique entries are added to zones file
+cat $TMP | sort -u | grep -v -P $WHITELIST | \
+ awk '{print "zone \""$1"\" { type master; notify no; file \"/etc/bind/blocked.zone\"; };"}' > $ZONES
+
+# Same m5d means no changes
+NEWSUM=$(md5sum $ZONES)
+if [ "$OLDSUM" == "$NEWSUM" ]; then
+  exit 0
+fi
+
+# Changes found, reload bind9
+named-checkconf
+if [ $? -eq 0 ]; then
+  rndc reload > /dev/null
+fi
