@@ -18,7 +18,7 @@ readonly URLS=(
 )
 
 # Regex, false positives only
-readonly WHITELIST="analytics\.google\.com|crackstation\.net|youtu\.be"
+readonly WHITELIST="analytics\.google\.com|crackstation\.net"
 
 # Zones not in the listed URLS
 readonly MANUALBLOCKS=(
@@ -27,8 +27,8 @@ readonly MANUALBLOCKS=(
 
 # Put all URLS into TMP
 for url in ${URLS[@]}; do
-  wget -O - $url --quiet | grep -Po '(?:^|0\.0\.0\.0 )((?:[a-z0-9\-]+\.)+[a-z\-]+)(?:$| )' | \
-    awk '{print $NF}' | sed 's/www\.//' | tr "[:upper:]" "[:lower:]" >> $TMP
+  wget -O - $url --quiet | grep -Po '^(?:0.0.0.0 )?((?:[a-z0-9\-]+\.)+[a-z\-]+)(?:$| )' | \
+    awk '{print $NF}' | tr "[:upper:]" "[:lower:]" >> $TMP
 done
 
 # Manually blocked sites
