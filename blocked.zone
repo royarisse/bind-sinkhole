@@ -6,7 +6,7 @@ $TTL    86400   ; one day
                         3628800
                         604800
                         )
-                NS      ns.example.com.
+                NS      example.com.
                 A       0.0.0.0
 @       IN      A       0.0.0.0
 *       IN      A       0.0.0.0

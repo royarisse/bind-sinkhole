@@ -15,7 +15,7 @@ will be generated.
 
 ```bash
 wget -O- https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/blocked.zone --quiet | \
- sed "/example.com/$(hostname)/g" | sudo tee /etc/bind/blocked.zone
+ sed "s/example.com/$(hostname -f)/g" | sudo tee /etc/bind/blocked.zone
 
 echo 'include "/etc/bind/zones.blocked";' | sudo tee -a /etc/bind/named.conf.local
 ```
@@ -25,6 +25,7 @@ echo 'include "/etc/bind/zones.blocked";' | sudo tee -a /etc/bind/named.conf.loc
 Install the `bind-sinkhole` script as a daily cronjob:
 
 ```bash
-wget -O- https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/bind-sinkhole --quiet | sudo tee /etc/cron.daily/bind-sinkhole
+wget -O- https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/bind-sinkhole --quiet | \
+  sudo tee /etc/cron.daily/bind-sinkhole
 sudo chmod 700 /etc/cron.daily/bind-sinkhole
 ```
