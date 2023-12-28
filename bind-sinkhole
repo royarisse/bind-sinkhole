@@ -18,7 +18,7 @@ readonly URLS=(
 )
 
 # Regex, false positives only
-readonly WHITELIST="analytics\.google\.com|crackstation\.net"
+readonly WHITELIST="analytics\.google\.com|crackstation\.net|youtu\.be"
 
 # Zones not in the listed URLS
 readonly MANUALBLOCKS=(
