@@ -15,6 +15,7 @@ readonly URLS=(
     https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt
     https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list
     https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/porn.list
+    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/trackers.list
 )
 
 # Regex, false positives only
