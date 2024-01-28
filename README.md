@@ -11,13 +11,21 @@ will be generated.
 ## Setup
 
 1. Create the `blocked.zone` file;
-2. Add the `zones.blocked` file to your `named.conf.local`:
+2. Core filtering relies on Cloudflare's Family DNS, see `resolvers` below;
+3. Additional filtering uses`zones.blocked`, see `include` below.
 
 ```bash
 wget -O- https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/blocked.zone --quiet | \
  sed "s/example.com/$(hostname -f)/g" | sudo tee /etc/bind/blocked.zone
 
-echo 'include "/etc/bind/zones.blocked";' | sudo tee -a /etc/bind/named.conf.local
+echo 'options {
+  forwarders {
+    1.1.1.3;
+    1.0.0.3;
+  }
+}
+
+include "/etc/bind/zones.blocked";' | sudo tee -a /etc/bind/named.conf.local
 ```
 
 ## Installation
