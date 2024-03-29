@@ -79,14 +79,3 @@ view nofilter {
   };
 };
 ```
-
-
-## Installation
-
-Install the `bind-sinkhole` script as a daily cronjob:
-
-```bash
-wget -O- https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/bind-sinkhole --quiet | \
-  sudo tee /etc/cron.daily/bind-sinkhole
-sudo chmod 700 /etc/cron.daily/bind-sinkhole
-```
