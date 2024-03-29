@@ -8,7 +8,7 @@ function installCron() {
 }
 
 function installZones() {
-  sed "s/example\.com\./$(hostname)/g" blocked.zone > /etc/bind/blocked.zone
+  sed "s/example\.com\./$(hostname)./g" blocked.zone > /etc/bind/blocked.zone
   cp zones.* /etc/bind/
 }
 
