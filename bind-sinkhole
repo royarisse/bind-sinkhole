@@ -14,8 +14,6 @@ URLS=(
     https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list2.txt
     https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt
     https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list
-    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.ads
-    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.distracting
 )
 
 readonly TMP ZONES WHITELIST URLS
@@ -31,6 +29,9 @@ done
 sort -u "$TMP" | grep -v -P $WHITELIST | \
   awk '{ print "zone \""$1"\" { type master; notify no; file \"/etc/bind/blocked.zone\"; };" }' \
   > $ZONES
+
+wget -O - "https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.ads" --quiet > /etc/bind/zones.ads
+wget -O - "https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.distracting" --quiet > /etc/bind/zones.distracting
 
 if named-checkconf; then
   rndc reload > /dev/null
