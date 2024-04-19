@@ -23,6 +23,7 @@ zone "thuisbezorgd.nl" { type master; notify no; file "/etc/bind/blocked.zone"; 
 zone "thechive.com" { type master; notify no; file "/etc/bind/blocked.zone"; }; 
 zone "tiktok.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "tumbex.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
+zone "twitch.tv" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "twitter.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "uberhumor.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "wikihow.com" { type master; notify no; file "/etc/bind/blocked.zone"; };

@@ -14,8 +14,8 @@ URLS=(
     https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list2.txt
     https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt
     https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list
-    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/porn.list
-    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/trackers.list
+    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.ads
+    https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.distracting
 )
 
 readonly TMP ZONES WHITELIST URLS
