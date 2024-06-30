@@ -29,4 +29,3 @@ zone "twitch.tv" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "twitter.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "uberhumor.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "wikihow.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
-zone "wikimedia.org" { type master; notify no; file "/etc/bind/blocked.zone"; };
