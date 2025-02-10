@@ -1,5 +1,6 @@
 zone "9gag.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "cheezburger.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
+zone "coomer.su" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "cosplayboobies.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "deviantart.com" { type master; notify no; file "/etc/bind/blocked.zone"; };
 zone "dumpert.nl" { type master; notify no; file "/etc/bind/blocked.zone"; };
