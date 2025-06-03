@@ -3,13 +3,14 @@
 set -e
 
 function installCron() {
-  cp bind-sinkhole /etc/cron.daily/bind-sinkhole
+  cp cron /etc/cron.daily/bind-sinkhole
   chmod +x /etc/cron.daily/bind-sinkhole
 }
 
-function installZones() {
+function installFiles() {
   sed "s/example\.com\./$(hostname)./g" blocked.zone > /etc/bind/blocked.zone
-  cp zones.* /etc/bind/
+  cp hosts.allow /etc/bind/hosts.allow
+  cp hosts.block /etc/bind/hosts.block
 }
 
 function runCron() {
@@ -17,7 +18,7 @@ function runCron() {
 }
 
 function main() {
-    installZones
+    installFiles
     installCron
     runCron
 }

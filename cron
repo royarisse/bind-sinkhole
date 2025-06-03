@@ -6,7 +6,8 @@
 
 TMP=$(mktemp)
 ZONES="/etc/bind/zones.blocked"
-WHITELIST="analytics\.google\.com|crackstation\.net"
+WHITELIST="/etc/bind/hosts.allow"
+BLACKLIST="/etc/bind/hosts.block"
 URLS=(
     https://someonewhocares.org/hosts/zero/hosts
     https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
@@ -16,7 +17,7 @@ URLS=(
     https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list
 )
 
-readonly TMP ZONES WHITELIST URLS
+readonly TMP ZONES WHITELIST BLACKLIST URLS
 
 # Put all URLS into TMP
 for url in "${URLS[@]}"; do
@@ -25,13 +26,25 @@ for url in "${URLS[@]}"; do
     awk '{print $NF}' | tr "[:upper:]" "[:lower:]" >> "$TMP"
 done
 
-# Ensure only unique entries are added to zones file
-sort -u "$TMP" | grep -v -P $WHITELIST | \
-  awk '{ print "zone \""$1"\" { type master; notify no; file \"/etc/bind/blocked.zone\"; };" }' \
-  > $ZONES
+# Add manually blacklisted too
+sort -u "$BLACKLIST" >> "$TMP"
 
-wget -O - "https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.ads" --quiet > /etc/bind/zones.ads
-wget -O - "https://raw.githubusercontent.com/royarisse/bind-sinkhole/master/zones.distracting" --quiet > /etc/bind/zones.distracting
+# Get unique lines and add to zones file
+sort -u "$TMP" | while IFS= read -r HOSTNAME; do
+  # Skip empty lines and comments
+  if [[ -z "$HOSTNAME" || "$HOSTNAME" =~ ^# ]]; then
+    continue
+  fi
+
+  # Skip whitelisted HOSTNAMEs
+  if grep -q -i "^$HOSTNAME$" "$WHITELIST"; then
+    continue
+  fi
+
+  # Add HOSTNAME to zones file
+  awk '{ print "zone \""$1"\" { type master; notify no; file \"/etc/bind/blocked.zone\"; };" }' \
+    > $ZONES
+done
 
 if named-checkconf; then
   rndc reload > /dev/null
