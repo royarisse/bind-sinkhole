@@ -1,51 +1,103 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # https://www.it-dan.com/blog/block-ads-linux-and-bind9
 # http://someonewhocares.org/hosts/zero/
 # https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
 
-TMP=$(mktemp)
-ZONES="/etc/bind/zones.blocked"
+set -euo pipefail
+
+RPZ_ZONE="rpz.blocked"
+RPZ_FILE="/etc/bind/db.rpz.blocked"
+
 WHITELIST="/etc/bind/hosts.allow"
 BLACKLIST="/etc/bind/hosts.block"
+
+TMP="$(mktemp)"
+TMP_RPZ="$(mktemp)"
+
 URLS=(
-    https://someonewhocares.org/hosts/zero/hosts
-    https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
-    https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list1.txt
-    https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list2.txt
-    https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt
-    https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list
+    "https://someonewhocares.org/hosts/zero/hosts"
+    "https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt"
+    "https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list1.txt"
+    "https://raw.githubusercontent.com/zessu/pi-hole-dns/master/list2.txt"
+    "https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt"
+    "https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/black.list"
 )
 
-readonly TMP ZONES WHITELIST BLACKLIST URLS
+trap 'rm -f "$TMP" "$TMP_RPZ"' EXIT
 
 # Put all URLS into TMP
 for url in "${URLS[@]}"; do
-  wget -O - "$url" --quiet | \
-    grep -Po '^(?:0.0.0.0 )?((?:[a-z0-9\-]+\.)+[a-z\-]+)(?:$| )' | \
-    awk '{print $NF}' | tr "[:upper:]" "[:lower:]" >> "$TMP"
+    wget -qO- "$url" |
+        grep -Po '^(?:0\.0\.0\.0\s+)?((?:[a-z0-9-]+\.)+[a-z0-9-]+)(?:\s|$)' |
+        awk '{ print tolower($NF) }' >> "$TMP"
 done
 
 # Add manually blacklisted too
-sort -u "$BLACKLIST" >> "$TMP"
+if [[ -f "$BLACKLIST" ]]; then
+    cat "$BLACKLIST" >> "$TMP"
+fi
+
+# Build RPZ template
+SERIAL="$(date +%Y%m%d%H)"
+cat > "$TMP_RPZ" <<EOF
+\$TTL 60
+
+@   IN  SOA localhost. root.localhost. (
+        $SERIAL
+        1h
+        15m
+        30d
+        60
+)
+
+    IN  NS  localhost.
+
+EOF
 
 # Get unique lines and add to zones file
-sort -u "$TMP" | while IFS= read -r HOSTNAME; do
-  # Skip empty lines and comments
-  if [[ -z "$HOSTNAME" || "$HOSTNAME" =~ ^# ]]; then
-    continue
-  fi
+sort -u "$TMP" | awk '
+    # Import whitelist
+    NR == FNR {
+        line = tolower($0)
 
-  # Skip whitelisted HOSTNAMEs
-  if grep -q -i "^$HOSTNAME$" "$WHITELIST"; then
-    continue
-  fi
+        if (line != "" && line !~ /^#/)
+            whitelist[line] = 1
 
-  # Add HOSTNAME to zones file
-  awk '{ print "zone \""$1"\" { type master; notify no; file \"/etc/bind/blocked.zone\"; };" }' \
-    > $ZONES
-done
+        next
+    }
 
-if named-checkconf; then
-  rndc reload > /dev/null
+    {
+        hostname = tolower($0)
+
+        if (hostname == "" || hostname ~ /^#/)
+            next
+
+        if (hostname in whitelist)
+            next
+
+        print hostname " CNAME ."
+    }
+' "$WHITELIST" - >> "$TMP_RPZ"
+
+# Validate generated zone before touching the live file
+named-checkzone "$RPZ_ZONE" "$TMP_RPZ" >/dev/null
+
+# Exit shortly if file didn't change
+if [[ -f "$RPZ_FILE" ]]; then
+    if diff -q \
+        <(sed '/^[[:space:]]*[0-9]\{10\}[[:space:]]*$/d' "$RPZ_FILE") \
+        <(sed '/^[[:space:]]*[0-9]\{10\}[[:space:]]*$/d' "$TMP_RPZ") \
+        >/dev/null
+    then
+        exit 0
+    fi
 fi
+
+# Install new RPZ zone
+chown root:bind "$TMP_RPZ"
+chmod 0644 "$TMP_RPZ"
+mv "$TMP_RPZ" "$RPZ_FILE"
+
+named-checkconf
+rndc reload "$RPZ_ZONE"
