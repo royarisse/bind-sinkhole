@@ -9,22 +9,28 @@ in your bind9 config.
 2. Run the `install.sh`, it will:
     - Install the cronjob to `/etc/cron.daily/bind-sinkhole`;
     - Copy `/etc/bind/hosts.allow` and `/etc/bind/hosts.block`;
-    - The cronjob generates `/etc/bind/zones.blocked`;
-3. Change your `named.conf.local` to include the `zones.blocked`, for example:
+3. Change your `named.conf.local` to include the `rpz.blocked` zone, for example:
 
 ```named.conf.local
 options {
+  response-policy {
+    zone "rpz.blocked";
+  };
+
   forwarders {
     1.1.1.3;
     1.0.0.3;
     208.67.222.123;
     208.67.220.123;
-  }
+  };
 
   forward only;
-}
+};
 
-include "/etc/bind/zones.blocked";
+zone "rpz.blocked" {
+  type master;
+  file "/etc/bind/db.rpz.blocked";
+};
 ```
 
 ## Usage
@@ -34,9 +40,9 @@ When installed, there will be two configuration files:
 - `/etc/bind/hosts.allow`;
 - `/etc/bind/hosts.block`.
 
-These files can be changed, adding one domain or subdomain per line.
-These files will then be used by the cronjob to generate the
-`/etc/bind/zones.blocked` file. Optionally, you can run the cronjob manually
+These files can be changed, adding one domain or subdomain per line. These
+files will then be used by the cronjob to generate the
+`/etc/bind/db.rpz.blocked` file. Optionally, you can run the cronjob manually
 to update the zones file:
 
 ```bash
@@ -49,18 +55,23 @@ Using views allows you to include specific zone files (and forwarders) based on
 client IP. You can manually add extra `zones.*` files if you want to.
 
 ```named.conf.local
-acl work {
-  1.2.3.4;
-}
-
 # Filter everything distracting
 view strict {
   match-clients {
-    work;
+    # Your home IP
+    1.2.3.4;
   };
 
   include "/etc/bind/zones.rfc1918";
-  include "/etc/bind/zones.blocked";
+
+  zone "rpz.blocked" {
+    type master;
+    file "/etc/bind/db.rpz.blocked";
+  };
+
+  response-policy {
+    zone "rpz.blocked";
+  };
 
   forwarders {
     1.1.1.3;

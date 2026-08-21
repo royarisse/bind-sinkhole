@@ -8,7 +8,6 @@ function installCron() {
 }
 
 function installFiles() {
-  sed "s/example\.com\./$(hostname)./g" blocked.zone > /etc/bind/blocked.zone
   cp hosts.allow /etc/bind/hosts.allow
   cp hosts.block /etc/bind/hosts.block
 }
