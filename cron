@@ -76,7 +76,9 @@ sort -u "$TMP" | awk '
         if (hostname in whitelist)
             next
 
+
         print hostname " CNAME ."
+        print "*." hostname " CNAME ."
     }
 ' "$WHITELIST" - >> "$TMP_RPZ"
 
@@ -100,4 +102,4 @@ chmod 0644 "$TMP_RPZ"
 mv "$TMP_RPZ" "$RPZ_FILE"
 
 named-checkconf
-rndc reload "$RPZ_ZONE"
+rndc reload "$RPZ_ZONE" > /dev/null
