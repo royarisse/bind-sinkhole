@@ -8,8 +8,13 @@ function installCron() {
 }
 
 function installFiles() {
-  cp hosts.allow /etc/bind/hosts.allow
-  cp hosts.block /etc/bind/hosts.block
+  if [ ! -f /etc/bind/hosts.allow ]; then
+    cp hosts.allow /etc/bind/hosts.allow
+  fi
+
+  if [ ! -f /etc/bind/hosts.block ]; then
+    cp hosts.block /etc/bind/hosts.block
+  fi
 }
 
 function runCron() {
