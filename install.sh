@@ -2,8 +2,17 @@
 
 set -e
 
+function installScript() {
+  install -m 0755 sinkhole-update /usr/local/bin/sinkhole-update
+}
+
 function installCron() {
-  cp cron /etc/cron.daily/bind-sinkhole
+  cat > /etc/cron.daily/bind-sinkhole <<'EOF'
+#!/usr/bin/env bash
+
+/usr/local/bin/sinkhole-update > /dev/null
+EOF
+
   chmod +x /etc/cron.daily/bind-sinkhole
 }
 
@@ -17,14 +26,15 @@ function installFiles() {
   fi
 }
 
-function runCron() {
-  /etc/cron.daily/bind-sinkhole
+function runScript() {
+  /usr/local/bin/sinkhole-update
 }
 
 function main() {
+    installScript
     installFiles
     installCron
-    runCron
+    runScript
 }
 
 main;

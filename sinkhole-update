@@ -1,0 +1,259 @@
+#!/usr/bin/env bash
+
+# https://www.it-dan.com/blog/block-ads-linux-and-bind9
+# http://someonewhocares.org/hosts/zero/
+# https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
+#!/usr/bin/env bash
+
+# https://www.it-dan.com/blog/block-ads-linux-and-bind9
+# http://someonewhocares.org/hosts/zero/
+# https://ewpratten.github.io/youtube_ad_blocklist/hosts.ipv4.txt
+
+set -euo pipefail
+
+RPZ_ZONE="rpz.blocked"
+RPZ_FILE="/etc/bind/db.rpz.blocked"
+
+WHITELIST="/etc/bind/hosts.allow"
+BLACKLIST="/etc/bind/hosts.block"
+
+TMP_DIR=$(mktemp -d)
+DOWNLOAD="$TMP_DIR/download"
+PARSED="$TMP_DIR/parsed"
+DOMAINS="$TMP_DIR/domains"
+
+URLS=(
+    "https://hagezi-mirror.dnsbunker.org/domains/multi.txt"
+    "https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt"
+)
+
+trap 'rm -rf -- "$TMP_DIR"' EXIT
+
+# Download and process each blocklist
+for url in "${URLS[@]}"; do
+    echo "Processing: $url"
+
+    if ! wget -q -T 30 -t 3 -O "$DOWNLOAD" "$url"; then
+        echo "ERROR: Failed to download: $url" >&2
+        rm -f "$DOWNLOAD"
+        exit 1
+    fi
+
+    grep -Po '^(?:0\.0\.0\.0\s+)?((?:[a-z0-9-]+\.)+[a-z0-9-]+)(?:\s|$)' "$DOWNLOAD" |
+        awk '{ print tolower($NF) }' > "$PARSED" || true
+
+    # Reject empty or unrecognized blocklists
+    if [[ ! -s "$PARSED" ]]; then
+        echo "ERROR: No valid domains found in: $url" >&2
+        rm -f "$DOWNLOAD" "$PARSED"
+        exit 1
+    fi
+
+    # Append validated domains
+    cat "$PARSED" >> "$DOMAINS"
+
+    echo "Imported $(wc -l < "$PARSED") domains"
+done
+
+# Add manually blacklisted too
+if [[ -f "$BLACKLIST" ]]; then
+    echo "Importing custom blacklist $BLACKLIST"
+    cat "$BLACKLIST" >> "$DOMAINS"
+fi
+
+# Build RPZ template
+SERIAL="$(date +%Y%m%d%H)"
+cat > "$TMP_DIR/new_rpz" <<EOF
+\$TTL 60
+
+@   IN  SOA localhost. root.localhost. (
+        $SERIAL
+        1h
+        15m
+        30d
+        60
+)
+
+    IN  NS  localhost.
+
+EOF
+
+# Get unique lines and add to zones file
+sort -u "$DOMAINS" | awk '
+    # Import whitelist
+    NR == FNR {
+        line = tolower($0)
+
+        if (line != "" && line !~ /^#/)
+            whitelist[line] = 1
+
+        next
+    }
+
+    {
+        hostname = tolower($0)
+
+        if (hostname == "" || hostname ~ /^#/)
+            next
+
+        if (hostname in whitelist)
+            next
+
+
+        print hostname " CNAME ."
+        print "*." hostname " CNAME ."
+    }
+' "$WHITELIST" - >> "$TMP_DIR/new_rpz"
+echo "Generated $(wc -l < "$TMP_DIR/new_rpz") RPZ records"
+
+echo "Validating RPZ zone"
+if ! named-checkzone "$RPZ_ZONE" "$TMP_DIR/new_rpz"; then
+    echo "ERROR: RPZ zone validation failed" >&2
+    exit 1
+fi
+
+# Exit shortly if file didn't change
+if [[ -f "$RPZ_FILE" ]]; then
+    if diff -q \
+        <(sed '/^[[:space:]]*[0-9]\{10\}[[:space:]]*$/d' "$RPZ_FILE") \
+        <(sed '/^[[:space:]]*[0-9]\{10\}[[:space:]]*$/d' "$TMP_DIR/new_rpz") \
+        >/dev/null
+    then
+        echo "RPZ zone unchanged"
+        exit 0
+    fi
+fi
+
+echo "Installing updated RPZ zone"
+chown root:bind "$TMP_DIR/new_rpz"
+chmod 0644 "$TMP_DIR/new_rpz"
+mv "$TMP_DIR/new_rpz" "$RPZ_FILE"
+
+echo "Reloading BIND"
+rndc reload "$RPZ_ZONE"
+
+echo "RPZ update completed successfully"
+set -euo pipefail
+
+RPZ_ZONE="rpz.blocked"
+RPZ_FILE="/etc/bind/db.rpz.blocked"
+
+WHITELIST="/etc/bind/hosts.allow"
+BLACKLIST="/etc/bind/hosts.block"
+
+TMP_DIR=$(mktemp -d)
+DOWNLOAD="$TMP_DIR/download"
+PARSED="$TMP_DIR/parsed"
+DOMAINS="$TMP_DIR/domains"
+
+URLS=(
+    "https://hagezi-mirror.dnsbunker.org/domains/multi.txt"
+    "https://raw.githubusercontent.com/trippz/adult-block-list/master/hosts.txt"
+)
+
+trap 'rm -rf -- "$TMP_DIR"' EXIT
+
+# Download and process each blocklist
+for url in "${URLS[@]}"; do
+    echo "Processing: $url"
+
+    if ! wget -q -T 30 -t 3 -O "$DOWNLOAD" "$url"; then
+        echo "ERROR: Failed to download: $url" >&2
+        rm -f "$DOWNLOAD"
+        exit 1
+    fi
+
+    grep -Po '^(?:0\.0\.0\.0\s+)?((?:[a-z0-9-]+\.)+[a-z0-9-]+)(?:\s|$)' "$DOWNLOAD" |
+        awk '{ print tolower($NF) }' > "$PARSED" || true
+
+    # Reject empty or unrecognized blocklists
+    if [[ ! -s "$PARSED" ]]; then
+        echo "ERROR: No valid domains found in: $url" >&2
+        rm -f "$DOWNLOAD" "$PARSED"
+        exit 1
+    fi
+
+    # Append validated domains
+    cat "$PARSED" >> "$DOMAINS"
+
+    echo "Imported $(wc -l < "$PARSED") domains"
+done
+
+# Add manually blacklisted too
+if [[ -f "$BLACKLIST" ]]; then
+    echo "Importing custom blacklist $BLACKLIST"
+    cat "$BLACKLIST" >> "$DOMAINS"
+fi
+
+# Build RPZ template
+SERIAL="$(date +%Y%m%d%H)"
+cat > "$TMP_DIR/new_rpz" <<EOF
+\$TTL 60
+
+@   IN  SOA localhost. root.localhost. (
+        $SERIAL
+        1h
+        15m
+        30d
+        60
+)
+
+    IN  NS  localhost.
+
+EOF
+
+# Get unique lines and add to zones file
+sort -u "$DOMAINS" | awk '
+    # Import whitelist
+    NR == FNR {
+        line = tolower($0)
+
+        if (line != "" && line !~ /^#/)
+            whitelist[line] = 1
+
+        next
+    }
+
+    {
+        hostname = tolower($0)
+
+        if (hostname == "" || hostname ~ /^#/)
+            next
+
+        if (hostname in whitelist)
+            next
+
+
+        print hostname " CNAME ."
+        print "*." hostname " CNAME ."
+    }
+' "$WHITELIST" - >> "$TMP_DIR/new_rpz"
+echo "Generated $(wc -l < "$TMP_DIR/new_rpz") RPZ records"
+
+echo "Validating RPZ zone"
+if ! named-checkzone "$RPZ_ZONE" "$TMP_DIR/new_rpz"; then
+    echo "ERROR: RPZ zone validation failed" >&2
+    exit 1
+fi
+
+# Exit shortly if file didn't change
+if [[ -f "$RPZ_FILE" ]]; then
+    if diff -q \
+        <(sed '/^[[:space:]]*[0-9]\{10\}[[:space:]]*$/d' "$RPZ_FILE") \
+        <(sed '/^[[:space:]]*[0-9]\{10\}[[:space:]]*$/d' "$TMP_DIR/new_rpz") \
+        >/dev/null
+    then
+        echo "RPZ zone unchanged"
+        exit 0
+    fi
+fi
+
+echo "Installing updated RPZ zone"
+chown root:bind "$TMP_DIR/new_rpz"
+chmod 0644 "$TMP_DIR/new_rpz"
+mv "$TMP_DIR/new_rpz" "$RPZ_FILE"
+
+echo "Reloading BIND"
+rndc reload "$RPZ_ZONE"
+
+echo "RPZ update completed successfully"
